@@ -1,0 +1,74 @@
+name: 인스타 게시물 자동 업로드
+
+on:
+  schedule:
+    - cron: "20 10 * * *"   # 매일 19:20 (한국 시간). GitHub 사정으로 몇 분~수십 분 늦을 수 있음
+  workflow_dispatch:         # Actions 탭에서 수동 실행
+    inputs:
+      topic:
+        description: "주제 직접 지정 (비우면 AI가 선택)"
+        required: false
+        default: ""
+      dry_run:
+        description: "미리보기만 (게시하지 않고 이미지만 생성)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: instagram-post
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: src
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+      CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+      CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+      CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: 한글 글꼴 설치
+        run: sudo apt-get update -q && sudo apt-get install -y -q fonts-noto-cjk
+      - run: pip install -r requirements.txt
+
+      - name: 원고 작성 + 카드뉴스 생성
+        env:
+          TOPIC: ${{ inputs.topic }}
+        run: python -m insta_auto.generate --topic "$TOPIC"
+
+      - name: 미리보기 이미지 첨부
+        if: ${{ inputs.dry_run }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview
+          path: media/
+
+      - name: 이미지 커밋 (공개 주소 만들기)
+        if: ${{ !inputs.dry_run }}
+        run: |
+          git config user.name "insta-bot"
+          git config user.email "insta-bot@users.noreply.github.com"
+          git add media data/pending.json
+          git commit -m "카드뉴스 이미지 생성"
+          git pull --rebase -q && git push
+
+      - name: 인스타그램 게시
+        if: ${{ !inputs.dry_run }}
+        run: python -m insta_auto.publish
+
+      - name: 게시 기록 저장
+        if: ${{ !inputs.dry_run }}
+        run: |
+          git add -A data
+          git commit -m "게시 기록 업데이트"
+          git pull --rebase -q && git push
