@@ -28,14 +28,15 @@ def main():
     history = json.loads(HISTORY_PATH.read_text(encoding="utf-8"))
     history.append({
         "posted_at": datetime.now(ZoneInfo("Asia/Seoul")).isoformat(timespec="minutes"),
-        "title": post["cover_title"],
-        "topic": post["topic"],
+        "kind": post["kind"],
+        "key": post["key"],
+        "title": post["title"],
         "media_id": media_id,
         "dir": pending["dir"],
     })
     HISTORY_PATH.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
     pending_path.unlink()
-    print(f"게시 완료: {post['cover_title']} (media_id={media_id})")
+    print(f"게시 완료: {post['title']} (media_id={media_id})")
 
 
 if __name__ == "__main__":

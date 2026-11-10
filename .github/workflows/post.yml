@@ -1,12 +1,17 @@
-name: 인스타 게시물 자동 업로드
+name: 부산온나우 게시물 자동 업로드
 
 on:
   schedule:
     - cron: "20 10 * * *"   # 매일 19:20 (한국 시간). GitHub 사정으로 몇 분~수십 분 늦을 수 있음
   workflow_dispatch:         # Actions 탭에서 수동 실행
     inputs:
+      kind:
+        description: "게시물 종류 (비우면 요일표대로)"
+        type: choice
+        options: ["", "event", "exhibit", "news"]
+        default: ""
       topic:
-        description: "주제 직접 지정 (비우면 AI가 선택)"
+        description: "행사명·주제 직접 지정 (선택)"
         required: false
         default: ""
       dry_run:
@@ -28,6 +33,8 @@ jobs:
       PYTHONPATH: src
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+      KOPIS_API_KEY: ${{ secrets.KOPIS_API_KEY }}
+      TOURAPI_KEY: ${{ secrets.TOURAPI_KEY }}
       CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
       CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
       CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
@@ -43,8 +50,9 @@ jobs:
 
       - name: 원고 작성 + 카드뉴스 생성
         env:
+          KIND: ${{ inputs.kind }}
           TOPIC: ${{ inputs.topic }}
-        run: python -m insta_auto.generate --topic "$TOPIC"
+        run: python -m insta_auto.generate --kind "$KIND" --topic "$TOPIC"
 
       - name: 미리보기 이미지 첨부
         if: ${{ inputs.dry_run }}
