@@ -9,6 +9,7 @@
 
 import csv
 import os
+import re
 import xml.etree.ElementTree as ET
 from datetime import date, datetime, timedelta
 
@@ -26,6 +27,11 @@ def _d(text: str) -> date | None:
         return datetime.strptime(text[:8], "%Y%m%d").date()
     except ValueError:
         return None
+
+
+def _clean_title(text: str) -> str:
+    """KOPIS 제목·공연장 끝의 지역 표시 ' [부산]'을 뗀다."""
+    return re.sub(r"\s*\[부산\]", "", text or "").strip()
 
 
 def _event(**kw) -> dict:
@@ -50,8 +56,9 @@ def kopis_list(today: date, days: int, region: str) -> list[dict]:
         root = ET.fromstring(requests.get(f"{KOPIS_BASE}/pblprfr", params=params, timeout=30).content)
         for db in root.findall("db"):
             g = lambda tag: (db.findtext(tag) or "").strip()
-            events.append(_event(id=f"kopis:{g('mt20id')}", source="KOPIS", category="공연", title=g("prfnm"),
-                                 start=_d(g("prfpdfrom")), end=_d(g("prfpdto")), venue=g("fcltynm"), genre=g("genrenm")))
+            events.append(_event(id=f"kopis:{g('mt20id')}", source="KOPIS", category="공연", title=_clean_title(g("prfnm")),
+                                 start=_d(g("prfpdfrom")), end=_d(g("prfpdto")), venue=_clean_title(g("fcltynm")),
+                                 genre=g("genrenm")))
     return events
 
 
