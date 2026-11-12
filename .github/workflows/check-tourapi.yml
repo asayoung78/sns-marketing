@@ -1,4 +1,4 @@
-name: 축제 API 설정 점검
+name: 공공데이터 API 설정 점검
 
 on:
   workflow_dispatch:
@@ -12,6 +12,7 @@ jobs:
     env:
       PYTHONPATH: src
       TOURAPI_KEY: ${{ secrets.TOURAPI_KEY }}
+      KOPIS_API_KEY: ${{ secrets.KOPIS_API_KEY }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
