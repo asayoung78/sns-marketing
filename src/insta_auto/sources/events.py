@@ -42,18 +42,16 @@ def kopis_list(today: date, days: int, region: str) -> list[dict]:
         print("KOPIS_API_KEY 없음 → 공연 정보 건너뜀")
         return []
     events = []
-    for page in range(1, 4):
+    # 한 번 조회에 최대 100건까지만 주므로 '공연중(02)'과 '공연예정(01)'을 나눠 조회한다
+    for state in ("02", "01"):
         params = {"service": key, "stdate": today.strftime("%Y%m%d"),
                   "eddate": (today + timedelta(days=min(days, 31))).strftime("%Y%m%d"),
-                  "cpage": page, "rows": 100, "signgucode": region}
+                  "cpage": 1, "rows": 100, "signgucode": region, "prfstate": state}
         root = ET.fromstring(requests.get(f"{KOPIS_BASE}/pblprfr", params=params, timeout=30).content)
-        rows = root.findall("db")
-        for db in rows:
+        for db in root.findall("db"):
             g = lambda tag: (db.findtext(tag) or "").strip()
             events.append(_event(id=f"kopis:{g('mt20id')}", source="KOPIS", category="공연", title=g("prfnm"),
                                  start=_d(g("prfpdfrom")), end=_d(g("prfpdto")), venue=g("fcltynm"), genre=g("genrenm")))
-        if len(rows) < 100:
-            break
     return events
 
 
