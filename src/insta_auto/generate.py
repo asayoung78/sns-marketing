@@ -16,6 +16,11 @@ from .sources import events
 KST = ZoneInfo("Asia/Seoul")
 WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 CAPTION_LIMIT = 2200  # Instagram 본문 최대 글자 수
+# 공공데이터 이용 조건에 맞춘 출처 표기
+SOURCE_CREDIT = {
+    "KOPIS": "(재)예술경영지원센터 공연예술통합전산망(www.kopis.or.kr)",
+    "한국관광공사": "한국관광공사 TourAPI",
+}
 
 
 def _short(text: str, n: int) -> str:
@@ -73,7 +78,7 @@ def build_event(settings, today, history, topic):
         _closing(settings, "이번에 같이 가볼래?", ["방문 전 공식 안내를 꼭 확인해 주세요"]),
     ]
     caption = _caption(post["caption"], [f"{k}: {v}" for k, v in rows] + [f"자세히: {ev['url']}" if ev["url"] else ""],
-                       f"※ {ev['source']} 공개 정보 기준이며 일정·가격은 바뀔 수 있어요. 방문 전 공식 안내를 확인해 주세요.",
+                       f"※ 출처: {SOURCE_CREDIT.get(ev['source'], ev['source'])}. 일정·가격은 바뀔 수 있어요. 방문 전 공식 안내를 확인해 주세요.",
                        _hashtags(settings, post["hashtags"]))
     return {"kind": "event", "key": ev["id"], "title": ev["title"], "pages": pages, "caption": caption, "raw": post}
 
