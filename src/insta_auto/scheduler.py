@@ -161,10 +161,10 @@ def task_publish(settings: dict):
         for issue in gh.list_issues(label):
             names = {l["name"] for l in issue["labels"]}
             data = drafts.unpack(issue["body"])
-            if not data.get("post_at") or datetime.fromisoformat(data["post_at"]) > t or drafts.L_DONE in names:
+            if not data.get("post_at") or datetime.fromisoformat(data["post_at"]) > t or names & {drafts.L_DONE, drafts.L_SENT}:
                 continue
             if drafts.L_OK in names and drafts.L_ERR not in names:
-                if not os.environ.get("IG_ACCESS_TOKEN", "").strip():
+                if settings["instagram"].get("publish_mode", "api") == "api" and not os.environ.get("IG_ACCESS_TOKEN", "").strip():
                     if not any(MARK_MISSED in c["body"] for c in gh.comments(issue["number"])):
                         gh.comment(issue["number"], f"{MARK_MISSED}\n⏸️ 인스타그램 토큰(IG_ACCESS_TOKEN)이 아직 없어 게시를 보류했어요. 등록 후 `지금 게시`를 남겨 주세요.")
                         notify.send(f"⏸️ #{issue['number']} 인스타 토큰이 없어 게시 보류")

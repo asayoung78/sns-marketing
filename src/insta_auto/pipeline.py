@@ -198,7 +198,10 @@ def preview(issue: dict, notify_user: bool = True):
 
 # ---------------- 게시 ----------------
 def publish(issue: dict):
+    """승인된 초안을 게시한다. publish_mode가 manual이면 완성본을 텔레그램으로 보내 사용자가 직접 올린다."""
     settings = load_settings()
+    if settings["instagram"].get("publish_mode", "api") == "manual":
+        return deliver_manual(issue, settings)
     data = drafts.unpack(issue["body"])
     n = issue["number"]
     client = InstagramClient(require_env("IG_ACCESS_TOKEN"), settings["instagram"]["api_version"])
@@ -220,6 +223,30 @@ def publish(issue: dict):
     gh.update_issue(n, state="closed")
     notify.send(f"✅ #{n} 게시 완료! {notify.esc(issue['title'])}")
     return media_id
+
+
+def deliver_manual(issue: dict, settings: dict):
+    """완성된 릴스·카드와 본문을 텔레그램으로 보낸다(인스타 앱에서 직접 올리기용)."""
+    data = drafts.unpack(issue["body"])
+    n = issue["number"]
+    with tempfile.TemporaryDirectory() as tmp:
+        work = Path(tmp)
+        if data["type"] == "news":
+            caption = drafts.news_from_body(issue["body"])["caption"]
+            files = render_news(issue, settings, work)
+            sent = notify.send_files(files, caption=f"📰 #{n} 뉴스 카드 {len(files)}장 (순서대로 올려 주세요)")
+        else:
+            caption = drafts.reel_from_body(issue["body"])["caption"]
+            mp4, _, _ = render_reel_issue(issue, settings, work)
+            sent = notify.send_files([mp4], caption=f"🎬 #{n} 릴스 완성본", video=True)
+    if not sent:
+        raise RuntimeError("텔레그램으로 완성본을 보내지 못했어요. TELEGRAM 설정을 확인해 주세요.")
+    notify.send_plain(caption)
+    notify.send(f"👆 #{n} 완성본과 본문이에요. 인스타 앱에서 올려 주세요.\n"
+                "본문은 바로 위 메시지를 길게 눌러 <b>복사</b>하면 돼요.")
+    gh.comment(n, "📤 완성본과 본문을 텔레그램으로 보냈어요. 인스타그램 앱에서 직접 올려 주세요.")
+    gh.add_labels(n, [drafts.L_SENT])
+    gh.update_issue(n, state="closed")
 
 
 def fail(issue: dict, err: Exception):

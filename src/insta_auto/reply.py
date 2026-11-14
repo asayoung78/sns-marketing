@@ -34,6 +34,8 @@ def main():
     settings = load_settings()
     cfg = settings["reply"]
     mode = os.environ.get("REPLY_MODE", "").strip() or cfg["mode"]
+    if not os.environ.get("IG_ACCESS_TOKEN", "").strip():
+        return print("IG_ACCESS_TOKEN 없음 → 댓글 답글을 건너뜁니다.")
     client = InstagramClient(require_env("IG_ACCESS_TOKEN"), settings["instagram"]["api_version"])
     my_name = client.me()["username"]
     cutoff = datetime.now(timezone.utc) - timedelta(days=cfg["max_age_days"])

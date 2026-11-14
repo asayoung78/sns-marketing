@@ -69,6 +69,9 @@ post_effort = "high"
 reply_effort = "low"
 
 [instagram]
+# "manual" = 승인된 완성본(릴스·카드)과 본문을 게시 시간에 텔레그램으로 보내고, 인스타 앱에서 직접 올림
+# "api"    = 인스타그램 API로 자동 게시 (IG_ACCESS_TOKEN 필요 · Meta 제한 해제 후)
+publish_mode = "manual"
 api_version = "v23.0"
 
 [hosting]

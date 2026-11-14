@@ -15,8 +15,9 @@ DAYS = "월화수목금토일"
 # 라벨 이름과 색
 L_PLAN, L_REEL, L_NEWS = "기획표", "릴스초안", "뉴스초안"
 L_OK, L_DONE, L_SKIP, L_ERR = "승인됨", "게시완료", "건너뜀", "오류"
+L_SENT = "직접게시용전달"
 LABELS = {L_PLAN: "6f42c1", L_REEL: "e36209", L_NEWS: "0366d6", L_OK: "28a745",
-          L_DONE: "6a737d", L_SKIP: "d1d5da", L_ERR: "d73a49"}
+          L_DONE: "6a737d", L_SKIP: "d1d5da", L_ERR: "d73a49", L_SENT: "fbca04"}
 
 
 def kdate(d: date) -> str:
