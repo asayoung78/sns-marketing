@@ -34,6 +34,20 @@ def _font(size: int, bold: bool) -> ImageFont.FreeTypeFont:
     return ImageFont.truetype(str(FONT_DIR / name), size, index=KR_INDEX)
 
 
+HEADLINE_FONT = ""  # render_pages에서 settings 값으로 채움
+
+
+def _black(size: int) -> ImageFont.FreeTypeFont:
+    """표지 큰 제목용 굵은 글꼴. fonts 폴더의 사용자 글꼴이 있으면 우선 사용."""
+    custom = Path(__file__).resolve().parents[2] / "fonts" / HEADLINE_FONT
+    if HEADLINE_FONT and custom.is_file():
+        return ImageFont.truetype(str(custom), size)
+    black = FONT_DIR / "NotoSansCJK-Black.ttc"  # fonts-noto-cjk-extra 패키지
+    if black.exists():
+        return ImageFont.truetype(str(black), size, index=KR_INDEX)
+    return _font(size, True)
+
+
 def _wrap(draw: ImageDraw.ImageDraw, text: str, font, max_width: int) -> list[str]:
     """띄어쓰기 단위로 줄바꿈하고, 한 단어가 너무 길면 글자 단위로 자른다."""
     lines = []
@@ -143,8 +157,63 @@ def _photo_cover(img, d, page, design, width):
         y = _text_block(d, (MARGIN, y), line, _font(32, False), "#E6EEF5", width, max_lines=1) + 4
 
 
+def _category_color(design: dict, label: str) -> str:
+    colors = design.get("category_colors", {})
+    return next((c for k, c in colors.items() if k in label), colors.get("기타", design["accent"]))
+
+
+def _gradient(img, top: int, bottom: int, start: float, end: float):
+    """top~bottom 구간을 위에서 아래로 점점 어둡게(start→end 불투명도) 덮는다."""
+    h = bottom - top
+    mask = Image.linear_gradient("L").resize((W, h))  # 위 0 → 아래 255
+    mask = mask.point(lambda v: int(255 * (start + (end - start) * v / 255)))
+    img.paste(Image.new("RGB", (W, h), "#000000"), (0, top), mask)
+
+
+def _brand_cover(img, d, page, design):
+    """기존 부산온나우 표지: 사진 전체 배경, 왼쪽 위 'ON NOW · 분류', 오른쪽 위 배지, 아래 두 줄 큰 제목."""
+    label = _clean(page["label"])
+    color = _category_color(design, label)
+    if page.get("image"):
+        photo = ImageOps.fit(ImageOps.exif_transpose(Image.open(page["image"])).convert("RGB"), (W, H), centering=(0.5, 0.4))
+        img.paste(photo, (0, 0))
+    else:
+        img.paste(Image.new("RGB", (W, H), design["primary"]))
+    _gradient(img, 0, 240, 0.55, 0.0)
+    _gradient(img, int(H * 0.38), H, 0.0, 0.88)
+
+    # 왼쪽 위: ON NOW · 분류
+    tag_font = _black(36)
+    tag = f"{design.get('cover_tag', 'ON NOW')} · "
+    d.text((64, 56), tag, font=tag_font, fill="#FFFFFF")
+    d.text((64 + d.textlength(tag, font=tag_font), 56), label, font=tag_font, fill=color)
+    # 오른쪽 위: 배지
+    badge = design.get("cover_badge", "")
+    if badge:
+        bf = _font(24, True)
+        bw = d.textlength(badge, font=bf)
+        d.rounded_rectangle([W - 64 - bw - 36, 54, W - 64, 102], radius=24, fill=design.get("badge_color", "#0B2A5B"))
+        d.text((W - 64 - bw - 18, 62), badge, font=bf, fill="#FFFFFF")
+
+    # 아래: 날짜·장소 한 줄 + 두 줄 큰 제목 (둘째 줄 강조색)
+    lines = [l for l in (_clean(page.get("headline1", "")), _clean(page.get("headline2", ""))) if l] or [_clean(page["title"])]
+    size = 124
+    while size > 72 and max(d.textlength(l, font=_black(size)) for l in lines) > W - 128:
+        size -= 4
+    hf = _black(size)
+    step = int(size * 1.12)
+    y = H - 110 - step * len(lines)
+    info = _clean(page.get("info", ""))
+    if info:
+        d.text((66, y - 58), info, font=_font(34, True), fill="#FFFFFF", stroke_width=1, stroke_fill="#000000")
+    for i, line in enumerate(lines):
+        fill = color if i == len(lines) - 1 and len(lines) > 1 else "#FFFFFF"
+        d.text((60, y), line, font=hf, fill=fill, stroke_width=4, stroke_fill="#111111")
+        y += step
+
+
 def _heading(d, text, design, width, y=230):
-    y = _text_block(d, (MARGIN, y), text, _font(64, True), design["primary"], width, 1.3, max_lines=2)
+    y = _text_block(d, (MARGIN, y), text, _black(64), design["primary"], width, 1.3, max_lines=2)
     d.line([MARGIN, y + 26, W - MARGIN, y + 26], fill=design["primary"], width=3)
     return y + 76
 
@@ -196,17 +265,22 @@ DRAW = {"cover": _cover, "text": _text, "list": _list, "info": _info, "closing":
 
 
 def render_pages(pages: list[dict], settings: dict, out_dir: Path) -> list[Path]:
+    global HEADLINE_FONT
     design, brand = settings["design"], settings["account"]["brand"]
+    HEADLINE_FONT = design.get("headline_font", "")
     out_dir.mkdir(parents=True, exist_ok=True)
     width = W - MARGIN * 2
     paths = []
     for n, page in enumerate(pages, start=1):
-        photo_cover = page["type"] == "cover" and page.get("image")
-        dark = page["type"] == "closing" or bool(photo_cover)
+        dark = page["type"] == "closing"
         img = Image.new("RGB", (W, H), design["primary"] if dark else design["background"])
         d = ImageDraw.Draw(img)
-        if photo_cover:
-            _photo_cover(img, d, page, design, width)
+        if page["type"] == "cover":
+            _brand_cover(img, d, page, design)
+            path = out_dir / f"{n:02d}.jpg"
+            img.save(path, "JPEG", quality=92)
+            paths.append(path)
+            continue  # 표지는 쪽번호·하단 표시 없이 (기존 계정 스타일)
         elif page["type"] in ("text", "list", "info"):
             DRAW[page["type"]](d, page, design, width, _photo_band(img, page))
         else:

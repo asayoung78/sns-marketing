@@ -32,6 +32,14 @@ background = "#F4F8FB"        # 바탕 (옅은 하늘색)
 primary = "#0B4F8A"           # 제목·강조 (바다 파랑)
 accent = "#FF7A59"            # 포인트 (노을 코랄)
 text = "#1F2933"
+# 표지(기존 부산온나우 스타일): 사진 전체 배경 + 'ON NOW · 분류' + 두 줄 큰 제목(둘째 줄 색 강조)
+cover_tag = "ON NOW"
+cover_badge = "BUSAN ON NOW"
+badge_color = "#0B2A5B"
+# 분류별 강조색 (표지 둘째 줄 제목·분류 글자)
+category_colors = { "공연" = "#FF6FAE", "축제" = "#FFD43B", "전시" = "#4ADE80", "뉴스" = "#5BC0FF", "기타" = "#FFA94D" }
+# 제목 글꼴: fonts 폴더에 글꼴 파일(.ttf/.otf)을 올리고 파일 이름을 적으면 그 글꼴 사용 (비우면 Noto Sans KR Black)
+headline_font = ""
 
 [reply]
 # "draft" = 답글 초안만 만들어 GitHub 실행 기록에 보여 줌 (처음 2~3주 추천)

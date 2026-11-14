@@ -97,6 +97,8 @@ EVENT_SCHEMA = {
     "type": "object",
     "properties": {
         "hook": {"type": "string", "description": "표지 위 한 줄 훅, 사투리 살짝, 16자 이내"},
+        "headline1": {"type": "string", "description": "표지 큰 제목 첫 줄, 7자 이내. 예: '부산 단풍', '야장 자리', '서면이'"},
+        "headline2": {"type": "string", "description": "표지 큰 제목 둘째 줄(강조색), 7자 이내. 예: '인생샷', '미리 예약!', '빛났다'. 두 줄을 이어 읽으면 클릭하고 싶은 한 문장"},
         "intro": {"type": "string", "description": "공연·행사 내용: 줄거리·주제·볼거리를 2~3문장, 130자 이내. 날짜·가격 반복 금지"},
         "cast_intro": {"type": "string", "description": "출연진·제작진 소개 2문장 100자 이내. 자료에 이름만 있으면 이름과 역할만, 경력은 지어내지 말 것. 자료에 없으면 빈 문자열"},
         "points": {
@@ -106,11 +108,11 @@ EVENT_SCHEMA = {
         "caption": {"type": "string", "description": "인스타 본문 250~500자, 해시태그·행사 기본정보 표는 제외"},
         "hashtags": {"type": "array", "items": {"type": "string"}},
     },
-    "required": ["hook", "intro", "cast_intro", "points", "caption", "hashtags"],
+    "required": ["hook", "headline1", "headline2", "intro", "cast_intro", "points", "caption", "hashtags"],
     "additionalProperties": False,
 }
 
-CARD_RULE = "카드 문구(hook·intro·cast_intro·points)에는 이모지와 특수 기호를 쓰지 마세요(카드 글꼴에서 깨집니다). 이모지는 caption에만 쓰세요.\n"
+CARD_RULE = "카드 문구(hook·headline1·headline2·intro·cast_intro·points)에는 이모지와 특수 기호를 쓰지 마세요(카드 글꼴에서 깨집니다). 이모지는 caption에만 쓰세요.\n"
 
 
 def write_event_post(settings: dict, ev: dict, period: str) -> dict:
@@ -157,6 +159,8 @@ NEWS_SCHEMA = {
     "properties": {
         "found": {"type": "boolean"},
         "headline": {"type": "string", "description": "표지 제목 22자 이내"},
+        "headline1": {"type": "string", "description": "표지 큰 제목 첫 줄, 7자 이내"},
+        "headline2": {"type": "string", "description": "표지 큰 제목 둘째 줄(강조색), 7자 이내"},
         "subtitle": {"type": "string", "description": "표지 부제 30자 이내"},
         "slides": {
             "type": "array",
@@ -177,7 +181,7 @@ NEWS_SCHEMA = {
         "caption": {"type": "string", "description": "250~500자, 해시태그 제외"},
         "hashtags": {"type": "array", "items": {"type": "string"}},
     },
-    "required": ["found", "headline", "subtitle", "slides", "closing", "sources", "caption", "hashtags"],
+    "required": ["found", "headline", "headline1", "headline2", "subtitle", "slides", "closing", "sources", "caption", "hashtags"],
     "additionalProperties": False,
 }
 

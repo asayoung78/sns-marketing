@@ -33,6 +33,17 @@ def _short(text: str, n: int) -> str:
     return text if len(text) <= n else text[: n - 1] + "…"
 
 
+def _short_period(ev: dict) -> str:
+    """표지용 짧은 기간: 11.13(금)~15(일) 형태."""
+    days = "월화수목금토일"
+    s, e = ev["start"], ev["end"]
+    left = f"{s.month}.{s.day}({days[s.weekday()]})"
+    if s == e:
+        return left
+    right = f"{e.day}({days[e.weekday()]})" if (s.year, s.month) == (e.year, e.month) else f"{e.month}.{e.day}({days[e.weekday()]})"
+    return f"{left}~{right}"
+
+
 def _hashtags(settings: dict, extra: list[str]) -> str:
     content = settings["content"]
     tags = list(content["fixed_hashtags"])
@@ -102,8 +113,9 @@ def build_event(settings, today, history, topic):
     rows = when_rows + ticket_rows
     credit = f"사진: {ev['image_credit']}" if ev["images"] else ""
     pages = [
-        {"type": "cover", "label": ev["category"], "subtitle": post["hook"], "title": ev["title"],
-         "meta": [f"기간  {period}", f"장소  {_short(venue, 40)}"]},
+        {"type": "cover", "label": "공연" if is_show else "축제", "title": ev["title"],
+         "headline1": post["headline1"], "headline2": post["headline2"],
+         "info": f"{_short_period(ev)} · {_short(ev['title'], 14)} · {_short(venue, 12)}"},
         {"type": "text", "heading": "공연 내용" if is_show else "행사 내용", "body": post["intro"]},
         {"type": "info", "heading": "공연 일시 및 시간" if is_show else "일시 및 장소", "rows": when_rows},
     ]
@@ -137,8 +149,9 @@ def build_exhibit(settings, today, history, topic):
     rows = [("기간", post["period"]), ("장소", post["venue"]), ("관람시간", post["time"]),
             ("관람료", post["price"]), ("휴관일", post["closed"])]
     pages = [
-        {"type": "cover", "label": "전시", "subtitle": post["hook"], "title": post["title"],
-         "meta": [f"기간  {post['period']}", f"장소  {_short(post['venue'], 40)}"]},
+        {"type": "cover", "label": "전시", "title": post["title"],
+         "headline1": post["headline1"], "headline2": post["headline2"],
+         "info": f"{_short(post['period'], 24)} · {_short(post['venue'], 14)}"},
         {"type": "text", "heading": "어떤 전시냐면", "body": post["intro"]},
         {"type": "list", "heading": "관람 포인트", "items": post["points"][:3]},
         {"type": "info", "heading": "관람 정보", "rows": [(k, _short(v, 100)) for k, v in rows], "source": post["source_name"]},
@@ -156,7 +169,8 @@ def build_news(settings, today, history, topic):
         print("확인된 부산 뉴스가 없음 → 다른 종류로 대체")
         return None
     source = ", ".join(dict.fromkeys(s["name"] for s in post["sources"]))
-    pages = [{"type": "cover", "label": "부산 뉴스", "title": post["headline"], "meta": [post["subtitle"]]}]
+    pages = [{"type": "cover", "label": "뉴스", "title": post["headline"], "headline1": post["headline1"],
+              "headline2": post["headline2"], "info": _short(post["subtitle"], 30)}]
     pages += [{"type": "text", "number": i, "heading": s["heading"], "body": s["body"], "source": source}
               for i, s in enumerate(post["slides"][:3], start=1)]
     pages.append({"type": "closing", "title": post["closing"],

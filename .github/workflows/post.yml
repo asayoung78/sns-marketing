@@ -65,7 +65,7 @@ jobs:
           python-version: "3.12"
           cache: pip
       - name: 한글 글꼴 설치
-        run: sudo apt-get update -q && sudo apt-get install -y -q fonts-noto-cjk
+        run: sudo apt-get update -q && sudo apt-get install -y -q fonts-noto-cjk fonts-noto-cjk-extra
       - run: pip install -r requirements.txt
 
       - name: 원고 작성 + 카드뉴스 생성
