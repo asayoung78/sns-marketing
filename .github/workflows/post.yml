@@ -76,7 +76,7 @@ jobs:
 
       - name: 미리보기 이미지 첨부
         if: ${{ inputs.dry_run }}
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: preview
           path: media/
