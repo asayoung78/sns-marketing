@@ -97,23 +97,30 @@ EVENT_SCHEMA = {
     "type": "object",
     "properties": {
         "hook": {"type": "string", "description": "표지 위 한 줄 훅, 사투리 살짝, 16자 이내"},
-        "intro": {"type": "string", "description": "어떤 행사인지 2~3문장, 120자 이내, 자료에 있는 내용만"},
-        "points": {"type": "array", "items": {"type": "string"}, "description": "추천 포인트 2~3개, 각 40자 이내"},
+        "intro": {"type": "string", "description": "공연·행사 내용: 줄거리·주제·볼거리를 2~3문장, 130자 이내. 날짜·가격 반복 금지"},
+        "cast_intro": {"type": "string", "description": "출연진·제작진 소개 2문장 100자 이내. 자료에 이름만 있으면 이름과 역할만, 경력은 지어내지 말 것. 자료에 없으면 빈 문자열"},
+        "points": {
+            "type": "array", "items": {"type": "string"},
+            "description": "'이런 분께 추천해요' 2~3개. 각 항목은 '누구에게 + 왜 좋은지'를 줄거리·주제·출연진·장르·공연장 특징에서 근거를 들어 45자 이내로. 가격·날짜·시간·연령 같은 정보 카드 내용 반복 금지",
+        },
         "caption": {"type": "string", "description": "인스타 본문 250~500자, 해시태그·행사 기본정보 표는 제외"},
         "hashtags": {"type": "array", "items": {"type": "string"}},
     },
-    "required": ["hook", "intro", "points", "caption", "hashtags"],
+    "required": ["hook", "intro", "cast_intro", "points", "caption", "hashtags"],
     "additionalProperties": False,
 }
+
+CARD_RULE = "카드 문구(hook·intro·cast_intro·points)에는 이모지와 특수 기호를 쓰지 마세요(카드 글꼴에서 깨집니다). 이모지는 caption에만 쓰세요.\n"
 
 
 def write_event_post(settings: dict, ev: dict, period: str) -> dict:
     data = "\n".join(f"{k}: {v}" for k, v in [
         ("분류", f"{ev['category']} {ev['genre']}"), ("제목", ev["title"]), ("기간", period), ("장소", ev["venue"] or ev["address"]),
-        ("시간", ev["time"]), ("관람료", ev["price"]), ("관람연령", ev["age"]), ("소개", ev["description"]),
+        ("시간", ev["time"]), ("공연 시간(러닝타임)", ev["runtime"]), ("관람료", ev["price"]), ("관람연령", ev["age"]),
+        ("출연진", ev["cast"]), ("제작·기획", ev["producer"]), ("줄거리·내용", ev["synopsis"]), ("소개", ev["description"]),
     ] if v)
     prompt = f"[행사 자료 – 출처: {ev['source']}]\n{data}\n\n이 행사를 소개하는 카드뉴스 원고를 쓰세요. {HASHTAG_RULE}"
-    return _ask_json(settings, settings["ai"]["post_effort"], _persona(settings) + FACT_RULES, prompt, EVENT_SCHEMA)
+    return _ask_json(settings, settings["ai"]["post_effort"], _persona(settings) + FACT_RULES + CARD_RULE, prompt, EVENT_SCHEMA)
 
 
 # ---------------- 전시 ----------------
@@ -141,7 +148,7 @@ def write_exhibit_post(settings: dict, today: str, recent_titles: list[str]) -> 
     ))
     prompt = (f"[조사 메모]\n{notes}\n\n위 메모만 근거로 전시 소개 카드뉴스 원고를 쓰세요. 공식 출처로 기간과 장소를 확인하지 "
               f"못했다면 found=false로 두세요. 확인 안 된 항목은 빈 문자열. {HASHTAG_RULE}")
-    return _ask_json(settings, settings["ai"]["post_effort"], _persona(settings) + FACT_RULES, prompt, EXHIBIT_SCHEMA)
+    return _ask_json(settings, settings["ai"]["post_effort"], _persona(settings) + FACT_RULES + CARD_RULE, prompt, EXHIBIT_SCHEMA)
 
 
 # ---------------- 부산 뉴스 ----------------
@@ -186,7 +193,7 @@ def write_news_post(settings: dict, today: str, recent_titles: list[str]) -> dic
     ))
     prompt = (f"[조사 메모]\n{notes}\n\n위 메모만 근거로 '부산 뉴스' 카드뉴스 원고를 쓰세요. 확인된 소식이 없으면 found=false. "
               f"sources에는 실제로 참고한 매체명과 URL을 넣으세요. {HASHTAG_RULE}")
-    return _ask_json(settings, settings["ai"]["post_effort"], _persona(settings) + FACT_RULES, prompt, NEWS_SCHEMA)
+    return _ask_json(settings, settings["ai"]["post_effort"], _persona(settings) + FACT_RULES + CARD_RULE, prompt, NEWS_SCHEMA)
 
 
 # ---------------- 댓글 답글 ----------------

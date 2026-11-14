@@ -36,7 +36,8 @@ def _clean_title(text: str) -> str:
 
 def _event(**kw) -> dict:
     base = dict(id="", source="", category="", title="", start=None, end=None, venue="", address="",
-                time="", price="", age="", contact="", url="", description="", genre="")
+                time="", price="", age="", contact="", url="", description="", genre="",
+                cast="", runtime="", synopsis="", producer="", images=[], image_credit="")
     base.update({k: v for k, v in kw.items() if v is not None})
     return base
 
@@ -71,9 +72,14 @@ def kopis_detail(ev: dict) -> dict:
         return ev
     g = lambda tag: (db.findtext(tag) or "").strip()
     links = [(r.findtext("relatenm") or "").strip() for r in db.findall("relates/relate")]
+    # 포스터 + 소개 이미지(styurls). 카드 사진으로 쓴다
+    images = [g("poster")] + [(u.text or "").strip() for u in db.findall("styurls/styurl")]
+    producer = next((g(t) for t in ("entrpsnmP", "entrpsnmA", "entrpsnmH", "entrpsnm") if g(t)), "")
     ev.update(time=g("dtguidance"), price=g("pcseguidance"), age=g("prfage"),
-              contact=", ".join(l for l in links if l),
-              description=" ".join(x for x in [g("prfcast") and f"출연: {g('prfcast')}", g("prfruntime") and f"공연시간: {g('prfruntime')}", g("sty")] if x),
+              contact=", ".join(l for l in links if l), cast=g("prfcast"), runtime=g("prfruntime"),
+              synopsis=g("sty"), producer=producer, images=[u for u in images if u.startswith("http")],
+              image_credit="KOPIS 공연예술통합전산망",
+              description=" ".join(x for x in [g("prfcrew") and f"제작진: {g('prfcrew')}", g("sty")] if x),
               url=f"https://www.kopis.or.kr/por/db/pblprfr/pblprfrView.do?mt20Id={mt20id}")
     return ev
 
@@ -100,7 +106,8 @@ def tour_list(today: date, days: int, region: str) -> list[dict]:
     for it in items:
         events.append(_event(id=f"tour:{it.get('contentid')}", source="한국관광공사", category="축제·행사",
                              title=it.get("title", ""), start=_d(it.get("eventstartdate")), end=_d(it.get("eventenddate")),
-                             address=it.get("addr1", ""), contact=it.get("tel", "")))
+                             address=it.get("addr1", ""), contact=it.get("tel", ""),
+                             images=[u for u in [it.get("firstimage", "")] if u], image_credit="한국관광공사"))
     return events
 
 
@@ -114,6 +121,17 @@ def tour_detail(ev: dict) -> dict:
               contact=clean(intro.get("sponsor1tel")) or ev["contact"],
               description=clean(common.get("overview"))[:1500],
               url=f"https://korean.visitkorea.or.kr/detail/fes_detail.do?cotid={cid}")
+    # 행사 내용·프로그램 같은 반복 정보와 추가 사진은 있으면 쓰고, 실패해도 넘어간다
+    try:
+        infos = _tour("detailInfo2", contentId=cid, contentTypeId=15)
+        ev["synopsis"] = " ".join(f"[{clean(i.get('infoname'))}] {clean(i.get('infotext'))}" for i in infos)[:1500]
+    except Exception as e:
+        print(f"행사 내용 조회 실패: {e}")
+    try:
+        pics = _tour("detailImage2", contentId=cid, imageYN="Y")
+        ev["images"] = list(dict.fromkeys(ev["images"] + [p.get("originimgurl") for p in pics if p.get("originimgurl")]))
+    except Exception as e:
+        print(f"사진 조회 실패: {e}")
     return ev
 
 
@@ -124,7 +142,9 @@ def manual_list() -> list[dict]:
         return []
     with open(path, encoding="utf-8-sig") as f:
         return [_event(**{**row, "id": f"manual:{row['id']}", "source": "직접 입력",
-                          "start": _d(row.get("start")), "end": _d(row.get("end"))})
+                          "start": _d(row.get("start")), "end": _d(row.get("end")),
+                          "images": [u.strip() for u in (row.pop("image", "") or "").split("|") if u.strip()],
+                          "image_credit": "주최 측 제공"})
                 for row in csv.DictReader(f) if row.get("id") and row.get("title")]
 
 

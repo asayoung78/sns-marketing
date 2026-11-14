@@ -6,7 +6,12 @@
 
 import argparse
 import json
+import tempfile
 from datetime import datetime
+from pathlib import Path
+
+import requests
+from PIL import Image
 from zoneinfo import ZoneInfo
 
 from . import ai, render
@@ -48,6 +53,28 @@ def _caption(body: str, info_lines: list[str], notice: str, tags: str, heading: 
     return text
 
 
+def _download_images(pages: list[dict], folder: Path):
+    """페이지의 image_url을 임시 폴더로 받아 image(로컬 경로)로 바꾼다. 실패한 사진은 빼고 진행."""
+    cache = {}
+    for page in pages:
+        url = page.pop("image_url", None)
+        if not url:
+            continue
+        if url not in cache:
+            path = folder / f"img{len(cache)}"
+            try:
+                resp = requests.get(url, timeout=30, headers={"User-Agent": "Mozilla/5.0"})
+                resp.raise_for_status()
+                path.write_bytes(resp.content)
+                Image.open(path).verify()  # 진짜 이미지인지 확인
+                cache[url] = str(path)
+            except Exception as e:
+                print(f"사진 받기 실패({url}): {e}")
+                cache[url] = None
+        if cache[url]:
+            page["image"] = cache[url]
+
+
 def _closing(settings: dict, title: str, extra: list[str] = ()) -> dict:
     return {"type": "closing", "title": title,
             "lines": [*extra, "저장해 두고 친구랑 같이 가보자!", f"{settings['account']['brand']} 팔로우하고 부산 소식 받아보기"]}
@@ -67,16 +94,34 @@ def build_event(settings, today, history, topic):
     period = events.period_text(ev)
     post = ai.write_event_post(settings, ev, period)
     venue = ev["venue"] or ev["address"]
-    rows = [("기간", period), ("장소", _short(venue, 60)), ("시간", _short(ev["time"], 120)),
-            ("관람료", _short(ev["price"], 120)), ("관람연령", _short(ev["age"], 40)), ("문의·예매", _short(ev["contact"], 80))]
+    is_show = ev["category"] == "공연"
+    when_rows = [("기간", period), ("시간", _short(ev["time"], 90)), ("러닝타임", _short(ev["runtime"], 30)),
+                 ("장소", _short(venue, 50))]
+    ticket_rows = [("관람료", _short(ev["price"], 110)), ("관람연령", _short(ev["age"], 40)),
+                   ("문의·예매", _short(ev["contact"], 80))]
+    rows = when_rows + ticket_rows
+    credit = f"사진: {ev['image_credit']}" if ev["images"] else ""
     pages = [
         {"type": "cover", "label": ev["category"], "subtitle": post["hook"], "title": ev["title"],
          "meta": [f"기간  {period}", f"장소  {_short(venue, 40)}"]},
-        {"type": "text", "heading": "이런 행사예요", "body": post["intro"]},
-        {"type": "list", "heading": "이래서 추천해요", "items": post["points"][:3]},
-        {"type": "info", "heading": "행사 정보", "rows": rows, "source": ev["source"]},
+        {"type": "text", "heading": "공연 내용" if is_show else "행사 내용", "body": post["intro"]},
+        {"type": "info", "heading": "공연 일시 및 시간" if is_show else "일시 및 장소", "rows": when_rows},
+    ]
+    if post["cast_intro"].strip():
+        pages.append({"type": "text", "heading": "출연진 소개" if is_show else "참여·주최", "body": post["cast_intro"]})
+    pages += [
+        {"type": "list", "heading": "이런 분께 추천해요", "items": post["points"][:3]},
+        {"type": "info", "heading": "관람 정보", "rows": ticket_rows, "source": ev["source"]},
         _closing(settings, "이번에 같이 가볼래?", ["방문 전 공식 안내를 꼭 확인해 주세요"]),
     ]
+    # 사진: 표지는 첫 장(포스터), 본문 페이지는 남은 사진을 차례로, 모자라면 처음부터 다시 사용
+    imgs = ev["images"]
+    if imgs:
+        pages[0]["image_url"] = imgs[0]
+        rest = imgs[1:] or imgs
+        for i, page in enumerate(p for p in pages[1:] if p["type"] in ("text", "list", "info")):
+            page["image_url"] = rest[i % len(rest)]
+            page["source"] = page.get("source") and f"{page['source']} · {credit}" or credit
     caption = _caption(post["caption"], [f"{k}: {v}" for k, v in rows] + [f"자세히: {ev['url']}" if ev["url"] else ""],
                        f"※ 출처: {SOURCE_CREDIT.get(ev['source'], ev['source'])}. 일정·가격은 바뀔 수 있어요. 방문 전 공식 안내를 확인해 주세요.",
                        _hashtags(settings, post["hashtags"]))
@@ -146,7 +191,10 @@ def main():
         raise SystemExit("오늘 올릴 콘텐츠를 만들지 못했습니다. API 키와 실행 기록을 확인하세요.")
 
     out_dir = MEDIA_DIR / now.strftime("%Y%m%d-%H%M%S")
-    paths = render.render_pages(result["pages"], settings, out_dir)
+    # 원본 사진은 저장소에 올리지 않도록 임시 폴더에서만 쓴다
+    with tempfile.TemporaryDirectory() as tmp:
+        _download_images(result["pages"], Path(tmp))
+        paths = render.render_pages(result["pages"], settings, out_dir)
     post = {k: result[k] for k in ("kind", "key", "title", "raw")} | {"full_caption": result["caption"]}
     (out_dir / "post.json").write_text(json.dumps(post, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
     pending = {"dir": out_dir.relative_to(ROOT).as_posix(), "images": [p.name for p in paths]}
