@@ -4,6 +4,7 @@
 """
 
 import os
+import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -30,9 +31,18 @@ def check_kopis(today):
         print(f"   조회 실패: {e}")
 
 
+def folder_id(raw: str) -> str:
+    """폴더 주소 전체를 넣어도 ID만 뽑아낸다 (예: .../folders/1AbC...?usp=sharing → 1AbC...)."""
+    m = re.search(r"folders/([A-Za-z0-9_-]+)", raw) or re.search(r"[A-Za-z0-9_-]{15,}", raw)
+    return m.group(1) if m and m.groups() else (m.group(0) if m else "")
+
+
 def check_drive():
     print("\n④ 구글 드라이브 영상 폴더 확인")
-    key, folder = os.environ.get("GDRIVE_API_KEY", "").strip(), os.environ.get("GDRIVE_FOLDER_ID", "").strip()
+    key, raw = os.environ.get("GDRIVE_API_KEY", "").strip(), os.environ.get("GDRIVE_FOLDER_ID", "")
+    folder = folder_id(raw)
+    shape = "주소 전체" if "drive.google.com" in raw else ("따옴표·공백 포함" if raw.strip(" '\"\n") != raw else "ID만")
+    print(f"   폴더 ID 입력 형태: {shape} / 추출한 ID: {folder[:4]}…{folder[-3:]} ({len(folder)}자)" if folder else "   폴더 ID를 찾지 못함")
     if not key or not folder:
         print("   GDRIVE_API_KEY 또는 GDRIVE_FOLDER_ID 없음 → 건너뜀")
         return
