@@ -50,6 +50,14 @@ class InstagramClient:
         self._wait_until_ready(container)
         return self._request("POST", "me/media_publish", creation_id=container)["id"]
 
+    def publish_reel(self, video_url: str, caption: str, cover_url: str = "") -> str:
+        params = {"media_type": "REELS", "video_url": video_url, "caption": caption, "share_to_feed": "true"}
+        if cover_url:
+            params["cover_url"] = cover_url
+        container = self._request("POST", "me/media", **params)["id"]
+        self._wait_until_ready(container, timeout_s=900)  # 영상 처리는 몇 분 걸릴 수 있음
+        return self._request("POST", "me/media_publish", creation_id=container)["id"]
+
     # ---------- 댓글 ----------
     def recent_media(self, limit: int) -> list[dict]:
         return self._request("GET", "me/media", fields="id,caption,timestamp,comments_count", limit=limit).get("data", [])

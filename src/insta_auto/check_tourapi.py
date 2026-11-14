@@ -4,13 +4,13 @@
 """
 
 import os
-import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import requests
 
 from .config import load_settings
+from .drive import folder_id
 from .sources import events
 
 
@@ -29,12 +29,6 @@ def check_kopis(today):
             print("   0건입니다. 인증키가 맞는지(앞뒤 공백 없이) 확인하세요.")
     except Exception as e:
         print(f"   조회 실패: {e}")
-
-
-def folder_id(raw: str) -> str:
-    """폴더 주소 전체를 넣어도 ID만 뽑아낸다 (예: .../folders/1AbC...?usp=sharing → 1AbC...)."""
-    m = re.search(r"folders/([A-Za-z0-9_-]+)", raw) or re.search(r"[A-Za-z0-9_-]{15,}", raw)
-    return m.group(1) if m and m.groups() else (m.group(0) if m else "")
 
 
 def check_drive():
@@ -77,7 +71,7 @@ def check_telegram():
             chats = {u["message"]["chat"]["id"]: u["message"]["chat"].get("first_name", "") for u in updates if "message" in u}
             if chats:
                 for cid, name in chats.items():
-                    print(f"   대화방 번호(TELEGRAM_CHAT_ID): {cid}  ({name})")
+                    print(f"   대화방 번호(TELEGRAM_CHAT_ID): {cid}")
             else:
                 print("   대화 기록 없음 → 텔레그램에서 봇에게 /start 를 보낸 뒤 다시 실행하세요.")
             return

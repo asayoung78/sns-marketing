@@ -1,0 +1,45 @@
+name: 초안 댓글 명령 처리
+
+# 초안(이슈)에 댓글로 남긴 명령: 승인 · 승인 취소 · 미리보기 · 건너뛰기 · 지금 게시 · 교체
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: command-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  command:
+    # 공개 저장소라 저장소 주인·협업자의 댓글만 처리
+    if: ${{ !github.event.issue.pull_request && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      PYTHONPATH: src
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+      KOPIS_API_KEY: ${{ secrets.KOPIS_API_KEY }}
+      TOURAPI_KEY: ${{ secrets.TOURAPI_KEY }}
+      GDRIVE_API_KEY: ${{ secrets.GDRIVE_API_KEY }}
+      GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+      CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+      CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: 글꼴·영상 도구 설치
+        run: sudo apt-get update -q && sudo apt-get install -y -q fonts-noto-cjk fonts-noto-cjk-extra ffmpeg
+      - run: pip install -r requirements.txt
+      - run: python -m insta_auto.commands
