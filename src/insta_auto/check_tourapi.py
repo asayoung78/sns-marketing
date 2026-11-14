@@ -44,7 +44,7 @@ def check_drive():
     try:
         resp = requests.get("https://www.googleapis.com/drive/v3/files", timeout=30, params={
             "q": f"'{folder}' in parents and trashed = false", "key": key,
-            "fields": "files(name,mimeType,size)", "pageSize": 50})
+            "fields": "files(id,name,mimeType,size)", "pageSize": 50})
         if not resp.ok:
             print(f"   조회 실패 {resp.status_code}: {resp.text[:300]}")
             print("   → 폴더가 '링크가 있는 모든 사용자 보기'로 공유됐는지, 폴더 ID가 맞는지 확인하세요.")
