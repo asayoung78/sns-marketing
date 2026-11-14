@@ -63,13 +63,39 @@ def check_drive():
         print(f"   조회 실패: {e}")
 
 
+def check_telegram():
+    print("\n⑤ 텔레그램 알림 확인")
+    token, chat = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip(), os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+    if not token:
+        print("   TELEGRAM_BOT_TOKEN 없음 → 건너뜀")
+        return
+    base = f"https://api.telegram.org/bot{token}"
+    try:
+        if not chat:
+            # 봇에게 먼저 아무 메시지나 보낸 뒤 실행하면 대화방 번호(chat id)를 알려 준다
+            updates = requests.get(f"{base}/getUpdates", timeout=30).json().get("result", [])
+            chats = {u["message"]["chat"]["id"]: u["message"]["chat"].get("first_name", "") for u in updates if "message" in u}
+            if chats:
+                for cid, name in chats.items():
+                    print(f"   대화방 번호(TELEGRAM_CHAT_ID): {cid}  ({name})")
+            else:
+                print("   대화 기록 없음 → 텔레그램에서 봇에게 /start 를 보낸 뒤 다시 실행하세요.")
+            return
+        resp = requests.post(f"{base}/sendMessage", timeout=30,
+                             json={"chat_id": chat, "text": "✅ 부산온나우 알림 연결 테스트 성공! 앞으로 릴스 기획표와 초안 알림을 여기로 보낼게요."})
+        print("   테스트 메시지 전송 성공 ✅" if resp.ok else f"   전송 실패 {resp.status_code}: {resp.text[:200]}")
+    except Exception as e:
+        print(f"   확인 실패: {type(e).__name__}")  # 토큰이 오류 메시지에 섞여 나오지 않게 종류만 표시
+
+
 def main():
     region = load_settings()["event"]["tourapi_region"]
     today = datetime.now(ZoneInfo("Asia/Seoul")).date()
     if not os.environ.get("TOURAPI_KEY", "").strip():
         print("TOURAPI_KEY 없음 → 축제 점검 건너뜀")
         check_kopis(today)
-        return check_drive()
+        check_drive()
+        return check_telegram()
 
     print("① 법정동 시도코드 목록 (ldongCode2)")
     try:
@@ -97,6 +123,7 @@ def main():
         print(f"   조회 실패: {e}")
     check_kopis(today)
     check_drive()
+    check_telegram()
 
 
 if __name__ == "__main__":
