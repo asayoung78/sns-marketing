@@ -4,10 +4,10 @@
 """
 
 import os
-
-import requests
 from datetime import datetime
 from zoneinfo import ZoneInfo
+
+import requests
 
 from .config import load_settings
 from .sources import events
