@@ -188,8 +188,9 @@ def main():
     parser.add_argument("--force", action="store_true", help="기획표를 요일·시간과 상관없이 지금 만들기")
     args = parser.parse_args()
     settings = load_settings()
-    if os.environ.get("GITHUB_EVENT_NAME") == "schedule" and not settings["schedule"].get("enabled"):
-        return print("settings.toml의 [schedule] enabled = false → 예약 실행을 건너뜁니다.")
+    # 꺼져 있으면 정기 실행(GitHub 예약·cron-job.org 호출 = task all)은 건너뛰고, 작업을 골라 직접 실행할 때만 동작
+    if args.task == "all" and not settings["schedule"].get("enabled"):
+        return print("settings.toml의 [schedule] enabled = false → 정기 실행을 건너뜁니다.")
     gh.ensure_labels(drafts.LABELS)
     print(f"실행 시각(한국): {now():%Y-%m-%d %H:%M}")
     for name, fn in TASKS.items():
