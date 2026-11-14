@@ -93,6 +93,25 @@ def check_telegram():
         print(f"   확인 실패: {type(e).__name__}")  # 토큰이 오류 메시지에 섞여 나오지 않게 종류만 표시
 
 
+def check_instagram():
+    print("\n⑥ 인스타그램 토큰 확인")
+    token = os.environ.get("IG_ACCESS_TOKEN", "").strip()
+    if not token:
+        print("   IG_ACCESS_TOKEN 없음 → 건너뜀")
+        return
+    ver = load_settings()["instagram"]["api_version"]
+    try:
+        resp = requests.get(f"https://graph.instagram.com/{ver}/me", timeout=30,
+                            params={"fields": "user_id,username,account_type,media_count", "access_token": token})
+        if resp.ok:
+            me = resp.json()
+            print(f"   연결 성공 ✅ @{me.get('username')} (계정 유형: {me.get('account_type')}, 게시물 {me.get('media_count')}개)")
+        else:
+            print(f"   연결 실패 {resp.status_code}: {resp.json().get('error', {}).get('message', '')[:200]}")
+    except Exception as e:
+        print(f"   확인 실패: {type(e).__name__}")  # 토큰이 섞여 나오지 않게 종류만
+
+
 def main():
     region = load_settings()["event"]["tourapi_region"]
     today = datetime.now(ZoneInfo("Asia/Seoul")).date()
@@ -100,7 +119,8 @@ def main():
         print("TOURAPI_KEY 없음 → 축제 점검 건너뜀")
         check_kopis(today)
         check_drive()
-        return check_telegram()
+        check_telegram()
+        return check_instagram()
 
     print("① 법정동 시도코드 목록 (ldongCode2)")
     try:
@@ -129,6 +149,7 @@ def main():
     check_kopis(today)
     check_drive()
     check_telegram()
+    check_instagram()
 
 
 if __name__ == "__main__":
