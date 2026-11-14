@@ -4,6 +4,8 @@
 """
 
 import os
+
+import requests
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -28,12 +30,36 @@ def check_kopis(today):
         print(f"   조회 실패: {e}")
 
 
+def check_drive():
+    print("\n④ 구글 드라이브 영상 폴더 확인")
+    key, folder = os.environ.get("GDRIVE_API_KEY", "").strip(), os.environ.get("GDRIVE_FOLDER_ID", "").strip()
+    if not key or not folder:
+        print("   GDRIVE_API_KEY 또는 GDRIVE_FOLDER_ID 없음 → 건너뜀")
+        return
+    try:
+        resp = requests.get("https://www.googleapis.com/drive/v3/files", timeout=30, params={
+            "q": f"'{folder}' in parents and trashed = false", "key": key,
+            "fields": "files(name,mimeType,size)", "pageSize": 50})
+        if not resp.ok:
+            print(f"   조회 실패 {resp.status_code}: {resp.text[:300]}")
+            print("   → 폴더가 '링크가 있는 모든 사용자 보기'로 공유됐는지, 폴더 ID가 맞는지 확인하세요.")
+            return
+        files = resp.json().get("files", [])
+        print(f"   연결 성공 ✅ 파일 {len(files)}개")
+        for f in files[:10]:
+            mb = int(f.get("size", 0)) / 1_000_000
+            print(f"   - {f['name']} ({f['mimeType']}, {mb:.1f}MB)")
+    except Exception as e:
+        print(f"   조회 실패: {e}")
+
+
 def main():
     region = load_settings()["event"]["tourapi_region"]
     today = datetime.now(ZoneInfo("Asia/Seoul")).date()
     if not os.environ.get("TOURAPI_KEY", "").strip():
         print("TOURAPI_KEY 없음 → 축제 점검 건너뜀")
-        return check_kopis(today)
+        check_kopis(today)
+        return check_drive()
 
     print("① 법정동 시도코드 목록 (ldongCode2)")
     try:
@@ -60,6 +86,7 @@ def main():
     except Exception as e:
         print(f"   조회 실패: {e}")
     check_kopis(today)
+    check_drive()
 
 
 if __name__ == "__main__":

@@ -13,6 +13,8 @@ jobs:
       PYTHONPATH: src
       TOURAPI_KEY: ${{ secrets.TOURAPI_KEY }}
       KOPIS_API_KEY: ${{ secrets.KOPIS_API_KEY }}
+      GDRIVE_API_KEY: ${{ secrets.GDRIVE_API_KEY }}
+      GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
