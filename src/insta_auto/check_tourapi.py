@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 import requests
 
 from .config import load_settings
+from . import drive
 from .drive import folder_id
 from .sources import events
 
@@ -53,6 +54,16 @@ def check_drive():
         for f in files[:10]:
             mb = int(f.get("size", 0)) / 1_000_000
             print(f"   - {f['name']} ({f['mimeType']}, {mb:.1f}MB)")
+        music = next((f for f in files if f["mimeType"].endswith("folder") and f["name"] == drive.MUSIC_FOLDER), None)
+        if music:
+            inner = drive.list_files(music["id"])
+            tracks = [f for f in inner if f["mimeType"].startswith("audio/")]
+            print(f"   🎵 음악 폴더: 배경음악으로 쓸 수 있는 곡 {len(tracks)}개" + (" ✅" if tracks else ""))
+            for f in inner:
+                ok = "사용 가능" if f["mimeType"].startswith("audio/") else "⚠️ 음악 파일이 아님(사용 안 함)"
+                print(f"     - {f['name']} ({f['mimeType']}) {ok}")
+        else:
+            print(f"   🎵 '{drive.MUSIC_FOLDER}' 폴더를 찾지 못함 → 배경음악 없이 만들어져요")
     except Exception as e:
         print(f"   조회 실패: {e}")
 
